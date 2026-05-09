@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StudyAI — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+
+  <!-- Tesseract.js for image OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <style>
+  /* ════════════════════ LAYOUT ════════════════════ */
+  body { background: var(--bg-grad); min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 240px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    border-right: 1px solid var(--glass-border);
+    display: flex; flex-direction: column;
+    padding: 1.5rem 1rem;
+    z-index: 100;
+    box-shadow: 4px 0 24px rgba(37,99,235,.07);
+    transition: transform .3s cubic-bezier(.22,1,.36,1);
+  }
+
+  .sidebar-logo {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .25rem .5rem 1.5rem;
+    border-bottom: 1px solid rgba(37,99,235,.1);
+    margin-bottom: 1rem;
+  }
+  .sidebar-logo .logo-icon {
+    width: 38px; height: 38px; background: var(--accent-grad);
+    border-radius: 11px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; flex-shrink: 0;
+  }
+  .sidebar-logo .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.25rem; color: var(--text-primary); }
+  .sidebar-logo .logo-sub  { font-size: .7rem; color: var(--text-muted); font-weight: 400; display: block; margin-top: -2px; }
+
+  .nav-label { font-size: .7rem; font-weight: 600; color: var(--text-muted); letter-spacing: .1em; text-transform: uppercase; padding: 0 .5rem; margin-bottom: .4rem; }
+
+  .nav-btn {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .65rem .75rem; border: none; background: none;
+    border-radius: var(--radius-sm); cursor: pointer; width: 100%;
+    text-align: left; font-family: 'DM Sans', sans-serif;
+    font-size: .9rem; font-weight: 500; color: var(--text-secondary);
+    transition: background .18s, color .18s; margin-bottom: .15rem;
+  }
+  .nav-btn .nav-icon { font-size: 1.1rem; width: 24px; text-align: center; flex-shrink: 0; }
+  .nav-btn:hover { background: rgba(37,99,235,.08); color: var(--blue); }
+  .nav-btn.active { background: rgba(37,99,235,.12); color: var(--blue); font-weight: 600; }
+  .nav-btn.active .nav-icon { filter: none; }
+
+  .sidebar-bottom {
+    margin-top: auto; padding-top: 1rem;
+    border-top: 1px solid rgba(37,99,235,.1);
+  }
+  .user-chip {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .55rem .75rem; border-radius: var(--radius-sm);
+    background: rgba(37,99,235,.06); margin-bottom: .6rem;
+  }
+  .user-avatar {
+    width: 30px; height: 30px; background: var(--accent-grad);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: .8rem; flex-shrink: 0;
+  }
+  .user-email { font-size: .78rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Main content ── */
+  .main {
+    margin-left: 240px; min-height: 100vh;
+    padding: 2rem 2.5rem;
+    transition: margin .3s;
+  }
+
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;
+  }
+  .page-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.7rem; color: var(--text-primary); }
+  .page-sub   { font-size: .9rem; color: var(--text-muted); margin-top: .1rem; }
+
+  /* ── Sections ── */
+  .section { display: none; animation: slideUp .4s cubic-bezier(.22,1,.36,1) both; }
+  .section.active { display: block; }
+
+  /* ── Feature Cards ── */
+  .feature-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+  }
+
+  .feature-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.2rem; flex-wrap: wrap; gap: .75rem;
+  }
+  .feature-title {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem;
+    color: var(--text-primary); display: flex; align-items: center; gap: .45rem;
+  }
+  .feature-title .ft-icon {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  }
+  .icon-blue   { background: rgba(37,99,235,.12); }
+  .icon-cyan   { background: rgba(6,182,212,.12); }
+  .icon-green  { background: rgba(34,197,94,.12); }
+  .icon-indigo { background: rgba(99,102,241,.12); }
+
+  .action-row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin-top: .85rem; }
+
+  /* ── Upload label ── */
+  .upload-label { display: inline-flex; align-items: center; gap: .4rem;
+    padding: .55rem 1rem; background: rgba(6,182,212,.08);
+    border: 1.5px dashed rgba(6,182,212,.4); color: var(--cyan);
+    border-radius: var(--radius-sm); font-size: .85rem; font-weight: 500;
+    cursor: pointer; transition: background .2s, border-color .2s; }
+  .upload-label:hover { background: rgba(6,182,212,.16); border-color: var(--cyan); }
+
+  /* ════════════════════ QUIZ ════════════════════ */
+  #quiz-area { margin-top: 1.2rem; }
+
+  .quiz-header-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: .85rem; flex-wrap: wrap; gap: .5rem;
+  }
+  #quiz-counter { font-weight: 600; font-size: .88rem; color: var(--blue); }
+  #quiz-score   { font-size: .85rem; color: var(--text-muted); font-weight: 500; }
+
+  #quiz-question {
+    font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 600;
+    color: var(--text-primary); line-height: 1.5; margin-bottom: 1rem;
+  }
+
+  #quiz-options { display: flex; flex-direction: column; gap: .6rem; }
+
+  .quiz-option {
+    width: 100%; padding: .82rem 1.1rem; background: rgba(255,255,255,.7);
+    border: 1.5px solid rgba(37,99,235,.18); border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif; font-size: .92rem; color: var(--text-primary);
+    cursor: pointer; text-align: left; transition: background .18s, border-color .18s, transform .15s;
+  }
+  .quiz-option:hover:not(:disabled) { background: rgba(37,99,235,.1); border-color: var(--blue); transform: translateX(3px); }
+  .quiz-option.correct { background: rgba(34,197,94,.15) !important; border-color: var(--green) !important; color: #15803d; font-weight: 600; }
+  .quiz-option.wrong   { background: rgba(239,68,68,.12) !important; border-color: var(--red)   !important; color: #b91c1c; }
+  .quiz-option:disabled { cursor: default; }
+
+  .quiz-feedback { font-size: .9rem; font-weight: 600; margin-top: .75rem; min-height: 22px; }
+  .quiz-feedback.correct { color: var(--green); }
+  .quiz-feedback.wrong   { color: var(--red); }
+
+  #quiz-next { margin-top: .75rem; }
+
+  .quiz-result-card {
+    text-align: center; padding: 1.5rem;
+    background: rgba(37,99,235,.05); border-radius: var(--radius-md);
+    border: 1.5px solid rgba(37,99,235,.15);
+  }
+  .big-score { font-family: 'Syne', sans-serif; font-size: 3rem; font-weight: 800; color: var(--blue); line-height: 1; }
+  .pct-score { font-size: 1rem; color: var(--text-muted); margin: .3rem 0 .7rem; }
+  .quiz-result-card p { color: var(--text-secondary); font-size: .95rem; }
+
+  /* progress bar */
+  .quiz-progress-bar { height: 5px; background: rgba(37,99,235,.1); border-radius: 99px; margin-bottom: 1rem; overflow: hidden; }
+  .quiz-progress-fill { height: 100%; background: var(--accent-grad); border-radius: 99px; transition: width .4s ease; }
+
+  /* ════════════════════ TO-DO ════════════════════ */
+  .todo-add-row { display: flex; gap: .6rem; }
+  .todo-add-row .input { flex: 1; }
+
+  .todo-list { list-style: none; margin-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  .todo-item {
+    display: flex; align-items: center; gap: .7rem;
+    background: rgba(255,255,255,.7); border: 1.5px solid rgba(37,99,235,.12);
+    border-radius: 12px; padding: .7rem .9rem;
+    transition: background .18s; animation: slideUp .3s cubic-bezier(.22,1,.36,1) both;
+  }
+  .todo-item.done .todo-text { text-decoration: line-through; color: var(--text-muted); }
+  .todo-text { flex: 1; font-size: .9rem; color: var(--text-primary); word-break: break-word; }
+
+  .todo-check { display: flex; align-items: center; cursor: pointer; flex-shrink: 0; }
+  .todo-check input { display: none; }
+  .checkmark {
+    width: 20px; height: 20px; border: 2px solid rgba(37,99,235,.3);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    transition: all .18s;
+  }
+  .todo-check input:checked + .checkmark {
+    background: var(--accent-grad); border-color: transparent;
+  }
+  .todo-check input:checked + .checkmark::after { content: '✓'; color: #fff; font-size: .75rem; font-weight: 700; }
+
+  .todo-del { flex-shrink: 0; font-size: .85rem; }
+  .todo-empty { text-align: center; color: var(--text-muted); font-size: .9rem; padding: 1.5rem 0; }
+
+  .todo-toolbar { display: flex; align-items: center; justify-content: space-between; margin-top: .75rem; }
+  .todo-count    { font-size: .82rem; color: var(--text-muted); }
+
+  /* ════════════════════ AI CHAT ════════════════════ */
+  #chat-toggle {
+    position: fixed; bottom: 2rem; left: 2rem; z-index: 500;
+    width: 54px; height: 54px; border-radius: 50%;
+    background: var(--accent-grad); border: none; cursor: pointer;
+    box-shadow: 0 6px 24px rgba(37,99,235,.4);
+    font-size: 1.4rem; display: flex; align-items: center; justify-content: center;
+    transition: transform .2s, box-shadow .2s;
+  }
+  #chat-toggle:hover { transform: scale(1.1); box-shadow: 0 10px 32px rgba(37,99,235,.5); }
+  #chat-toggle .pulse-ring {
+    position: absolute; width: 100%; height: 100%; border-radius: 50%;
+    border: 2px solid rgba(37,99,235,.5); animation: ring 2s ease-out infinite;
+  }
+  @keyframes ring { 0%{ transform:scale(1); opacity:.8; } 100%{ transform:scale(1.6); opacity:0; } }
+
+  #chat-window {
+    position: fixed; bottom: 6.5rem; left: 2rem; z-index: 500;
+    width: 340px; max-height: 520px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(22px) saturate(1.6);
+    -webkit-backdrop-filter: blur(22px) saturate(1.6);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(37,99,235,.2);
+    display: flex; flex-direction: column; overflow: hidden;
+    transform: scale(.92) translateY(12px); opacity: 0; pointer-events: none;
+    transition: transform .3s cubic-bezier(.22,1,.36,1), opacity .3s;
+  }
+  #chat-window.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
+
+  .chat-header {
+    padding: .9rem 1.1rem; display: flex; align-items: center; gap: .6rem;
+    background: var(--accent-grad); border-radius: 24px 24px 0 0;
+  }
+  .chat-header .chat-avatar { font-size: 1.2rem; }
+  .chat-header .chat-name { font-family: 'Syne', sans-serif; font-weight: 700; color: #fff; font-size: .95rem; }
+  .chat-header .chat-status { font-size: .7rem; color: rgba(255,255,255,.75); display: flex; align-items: center; gap: .3rem; }
+  .status-dot { width: 7px; height: 7px; background: #4ade80; border-radius: 50%; animation: pulse-dot 1.5s ease-in-out infinite; }
+  #chat-close { margin-left: auto; background: none; border: none; color: rgba(255,255,255,.8); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+  #chat-close:hover { color: #fff; background: rgba(255,255,255,.15); }
+
+  #chat-body {
+    flex: 1; overflow-y: auto; padding: 1rem;
+    display: flex; flex-direction: column; gap: .6rem;
+    max-height: 340px;
+  }
+
+  .chat-msg { display: flex; }
+  .chat-msg.user  { justify-content: flex-end; }
+  .chat-msg.assistant { justify-content: flex-start; }
+
+  .chat-bubble {
+    max-width: 82%; padding: .6rem .85rem;
+    border-radius: 16px; font-size: .88rem; line-height: 1.55;
+    word-break: break-word; animation: popIn .25s cubic-bezier(.22,1,.36,1) both;
+  }
+  .chat-msg.user      .chat-bubble { background: var(--accent-grad); color: #fff; border-bottom-right-radius: 4px; }
+  .chat-msg.assistant .chat-bubble { background: rgba(37,99,235,.08); color: var(--text-primary); border-bottom-left-radius: 4px; }
+
+  /* Thinking dots */
+  .thinking .chat-bubble { display: flex; gap: 5px; align-items: center; padding: .7rem .85rem; }
+  .dot { width: 7px; height: 7px; background: var(--blue); border-radius: 50%; animation: bounce .9s ease-in-out infinite; }
+  .dot:nth-child(2) { animation-delay: .15s; }
+  .dot:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-5px); } }
+
+  .chat-input-row {
+    padding: .65rem .75rem; display: flex; gap: .5rem; align-items: flex-end;
+    border-top: 1px solid rgba(37,99,235,.1);
+  }
+  #chat-input {
+    flex: 1; border: 1.5px solid rgba(37,99,235,.18); border-radius: 12px;
+    padding: .55rem .85rem; font-family: 'DM Sans', sans-serif; font-size: .88rem;
+    background: rgba(255,255,255,.75); outline: none; resize: none;
+    color: var(--text-primary); max-height: 80px;
+    transition: border .2s;
+  }
+  #chat-input:focus { border-color: var(--blue); }
+  #chat-send {
+    width: 36px; height: 36px; border-radius: 10px; background: var(--accent-grad);
+    border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0; transition: transform .15s;
+  }
+  #chat-send:hover { transform: scale(1.08); }
+  #chat-send:disabled { opacity: .5; cursor: default; }
+
+  /* ════════════════════ STATS ROW ════════════════════ */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat-card {
+    background: var(--glass-bg); backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-md);
+    padding: 1.1rem 1.25rem; box-shadow: var(--shadow-sm);
+    animation: slideUp .4s cubic-bezier(.22,1,.36,1) both;
+  }
+  .stat-card:nth-child(2){ animation-delay: .06s; }
+  .stat-card:nth-child(3){ animation-delay: .12s; }
+  .stat-card:nth-child(4){ animation-delay: .18s; }
+  .stat-icon { font-size: 1.4rem; margin-bottom: .3rem; }
+  .stat-val  { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-primary); }
+  .stat-lbl  { font-size: .78rem; color: var(--text-muted); font-weight: 500; }
+
+  /* ════════════════════ HAMBURGER (mobile) ════════════════════ */
+  #hamburger {
+    display: none; position: fixed; top: 1rem; left: 1rem; z-index: 200;
+    width: 40px; height: 40px; background: var(--glass-bg);
+    border: 1px solid var(--glass-border); border-radius: 10px;
+    cursor: pointer; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    box-shadow: var(--shadow-sm);
+  }
+  #hamburger span { display: block; width: 18px; height: 2px; background: var(--blue); border-radius: 2px; }
+
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 99; }
+
+  /* ════════════════════ RESPONSIVE ════════════════════ */
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; padding: 1rem 1rem 1rem; padding-top: 4rem; }
+    #hamburger { display: flex; }
+    .sidebar-overlay.show { display: block; }
+    #chat-window { width: calc(100vw - 2rem); left: 1rem; }
+    #chat-toggle { bottom: 1.5rem; left: 1.5rem; }
+  }
+  @media (max-width: 500px) {
+    .page-title { font-size: 1.3rem; }
+    .feature-card { padding: 1.2rem; }
+  }
+
+  /* ════════════════════ Background orbs ════════════════════ */
+  .orb { position: fixed; border-radius: 50%; filter: blur(90px); opacity: .22; pointer-events: none; z-index: -1; }
+  .orb-1 { width: 480px; height: 480px; background: radial-gradient(circle, #3b82f6, #6366f1); top: -160px; right: -120px; }
+  .orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, #0ea5e9, #06b6d4); bottom: -100px; left: -100px; }
+  .orb-3 { width: 300px; height: 300px; background: radial-gradient(circle, #818cf8, #c4b5fd); top: 40%; left: 30%; }
+  </style>
+</head>
+<body>
+
+<!-- Background -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- Sidebar overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- Hamburger -->
+<button id="hamburger" onclick="openSidebar()" aria-label="Menu">
+  <span></span><span></span><span></span>
+</button>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🧠</div>
+    <div>
+      <div class="logo-text">StudyAI</div>
+      <span class="logo-sub">AI Study Dashboard</span>
+    </div>
+  </div>
+
+  <div class="nav-label">Features</div>
+  <button class="nav-btn" data-section="summarizer">
+    <span class="nav-icon">✨</span> Summarizer
+  </button>
+  <button class="nav-btn" data-section="quiz">
+    <span class="nav-icon">🎯</span> Quiz Generator
+  </button>
+  <button class="nav-btn" data-section="todo">
+    <span class="nav-icon">✅</span> To-Do List
+  </button>
+
+  <div class="sidebar-bottom">
+    <div class="user-chip">
+      <div class="user-avatar" id="user-initial">U</div>
+      <span class="user-email" id="user-email">Loading…</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="logout-btn" style="width:100%; justify-content:center;">
+      🚪 Sign Out
+    </button>
+  </div>
+</aside>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<main class="main">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Dashboard</h1>
+      <p class="page-sub">Your AI-powered study companion 🚀</p>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon">📝</div>
+      <div class="stat-val" id="stat-todos">0</div>
+      <div class="stat-lbl">Active Tasks</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🔍</div>
+      <div class="stat-val" id="stat-sums">0</div>
+      <div class="stat-lbl">Summaries Made</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🎯</div>
+      <div class="stat-val" id="stat-quizzes">0</div>
+      <div class="stat-lbl">Quizzes Taken</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">💬</div>
+      <div class="stat-val" id="stat-chats">0</div>
+      <div class="stat-lbl">AI Chats</div>
+    </div>
+  </div>
+
+  <!-- ═══ SUMMARIZER SECTION ═══ -->
+  <section class="section" id="summarizer">
+    <div class="feature-card">
+      <div class="feature-header">
+        <div class="feature-title">
+          <span class="ft-icon icon-blue">✨</span>
+          AI Summarizer
+        </div>
+        <span class="badge badge-blue">GPT-Powered</span>
+      </div>
+
+      <label for="sum-textarea" style="font-size:.82rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:.4rem;">
+        PASTE YOUR TEXT
+      </label>
+      <textarea class="textarea" id="sum-textarea" placeholder="Paste an article, lecture notes, or any text here…&#10;&#10;You can also upload an image to extract text from it 👇"></textarea>
+
+      <div class="action-row">
+        <label class="upload-label" for="sum-img-input">
+          🖼️ Upload Image
+        </label>
+        <input type="file" id="sum-img-input" accept="image/*" style="display:none"/>
+        <button class="btn btn-primary" id="sum-btn">✨ Summarize</button>
+      </div>
+
+      <div class="result-box hidden" id="sum-result"></div>
+    </div>
+  </section>
+
+  <!-- ═══ QUIZ SECTION ═══ -->
+  <section class="section" id="quiz">
+    <div class="feature-card">
+      <div class="feature-header">
+        <div class="feature-title">
+          <span class="ft-icon icon-cyan">🎯</span>
+          Quiz Generator
+        </div>
+        <span class="badge badge-blue">5 MCQs</span>
+      </div>
+
+      <label for="quiz-textarea" style="font-size:.82rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:.4rem;">
+        PASTE STUDY MATERIAL
+      </label>
+      <textarea class="textarea" id="quiz-textarea" placeholder="Paste your study material here and I'll create a 5-question quiz!&#10;&#10;Or upload an image 👇"></textarea>
+
+      <div class="action-row">
+        <label class="upload-label" for="quiz-img-input">
+          🖼️ Upload Image
+        </label>
+        <input type="file" id="quiz-img-input" accept="image/*" style="display:none"/>
+        <button class="btn btn-primary" id="quiz-gen-btn">🎯 Generate Quiz</button>
+      </div>
+    </div>
+
+    <!-- Quiz play area -->
+    <div class="feature-card hidden" id="quiz-area">
+      <div class="quiz-header-row">
+        <span id="quiz-counter">Question 1 / 5</span>
+        <span id="quiz-score">Score: 0</span>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="quiz-progress-bar">
+        <div class="quiz-progress-fill" id="quiz-progress" style="width:0%"></div>
+      </div>
+
+      <p id="quiz-question">Question will appear here…</p>
+
+      <div id="quiz-options"></div>
+
+      <div class="quiz-feedback" id="quiz-feedback"></div>
+
+      <button class="btn btn-ghost hidden" id="quiz-next">Next Question →</button>
+    </div>
+  </section>
+
+  <!-- ═══ TO-DO SECTION ═══ -->
+  <section class="section" id="todo">
+    <div class="feature-card">
+      <div class="feature-header">
+        <div class="feature-title">
+          <span class="ft-icon icon-green">✅</span>
+          Study To-Do List
+        </div>
+      </div>
+
+      <div class="todo-add-row">
+        <input class="input" type="text" id="todo-input" placeholder="Add a new task… (press Enter)"/>
+        <button class="btn btn-primary" id="todo-add-btn">+ Add</button>
+      </div>
+
+      <ul class="todo-list" id="todo-list"></ul>
+
+      <div class="todo-toolbar">
+        <span class="todo-count" id="todo-count"></span>
+        <button class="btn btn-danger btn-sm" id="todo-clear">🗑️ Clear All</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ════════ AI CHAT ════════ -->
+<button id="chat-toggle" aria-label="Open AI Chat">
+  <div class="pulse-ring"></div>
+  🤖
+</button>
+
+<div id="chat-window">
+  <div class="chat-header">
+    <span class="chat-avatar">🧠</span>
+    <div>
+      <div class="chat-name">StudyAI Assistant</div>
+      <div class="chat-status"><span class="status-dot"></span> Online</div>
+    </div>
+    <button id="chat-close" aria-label="Close">✕</button>
+  </div>
+
+  <div id="chat-body">
+    <!-- Welcome message -->
+    <div class="chat-msg assistant">
+      <div class="chat-bubble">👋 Hi! I'm your StudyAI assistant. Ask me anything — concepts, help with your notes, quiz questions, or anything at all!</div>
+    </div>
+  </div>
+
+  <div class="chat-input-row">
+    <textarea id="chat-input" placeholder="Ask anything…" rows="1"></textarea>
+    <button id="chat-send" aria-label="Send">➤</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ════════ SCRIPTS ════════ -->
+<script type="module">
+  import { requireAuth, logout } from "./firebase.js";
+  import { summarizeText, generateQuiz, getAIResponse } from "./ai.js";
+
+  // ── Auth guard ──────────────────────────────
+  requireAuth((user) => {
+    const emailEl   = document.getElementById("user-email");
+    const initialEl = document.getElementById("user-initial");
+    if (emailEl)   emailEl.textContent   = user.email;
+    if (initialEl) initialEl.textContent = user.email[0].toUpperCase();
+  });
+
+  document.getElementById("logout-btn").addEventListener("click", logout);
+
+
+  // ═══════════════════════════════════════════
+  //  STATS (localStorage counters)
+  // ═══════════════════════════════════════════
+  const STATS_KEY = "studyai_stats";
+  function getStats() { return JSON.parse(localStorage.getItem(STATS_KEY) || '{"sums":0,"quizzes":0,"chats":0}'); }
+  function bumpStat(key) {
+    const s = getStats(); s[key] = (s[key] || 0) + 1;
+    localStorage.setItem(STATS_KEY, JSON.stringify(s));
+    renderStats();
+  }
+  function renderStats() {
+    const s = getStats();
+    const todos = JSON.parse(localStorage.getItem("studyai_todos") || "[]").filter(t => !t.done).length;
+    document.getElementById("stat-todos").textContent   = todos;
+    document.getElementById("stat-sums").textContent    = s.sums    || 0;
+    document.getElementById("stat-quizzes").textContent = s.quizzes || 0;
+    document.getElementById("stat-chats").textContent   = s.chats   || 0;
+  }
+  renderStats();
+
+
+  // ═══════════════════════════════════════════
+  //  TAB NAV
+  // ═══════════════════════════════════════════
+  function switchSection(id) {
+    document.querySelectorAll(".nav-btn").forEach(b  => b.classList.toggle("active", b.dataset.section === id));
+    document.querySelectorAll(".section").forEach(s  => s.classList.toggle("active", s.id === id));
+    closeSidebar();
+  }
+  document.querySelectorAll(".nav-btn").forEach(b => b.addEventListener("click", () => switchSection(b.dataset.section)));
+  switchSection("summarizer");
+
+
+  // ═══════════════════════════════════════════
+  //  TOAST
+  // ═══════════════════════════════════════════
+  function showToast(msg, ms = 2800) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("show"), ms);
+  }
+
+
+  // ═══════════════════════════════════════════
+  //  IMAGE → TEXT  (Tesseract OCR)
+  // ═══════════════════════════════════════════
+  function setupOCR(inputId, textareaId) {
+    document.getElementById(inputId)?.addEventListener("change", async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const ta = document.getElementById(textareaId);
+      ta.value = "⏳ Extracting text from image…";
+      showToast("📷 Reading image…");
+      try {
+        const { data: { text } } = await Tesseract.recognize(file, "eng", { logger: () => {} });
+        ta.value = text.trim() || "Could not extract text.";
+        showToast("✅ Text extracted!");
+      } catch (err) {
+        ta.value = "";
+        showToast("❌ OCR failed: " + err.message);
+      }
+      e.target.value = "";
+    });
+  }
+  setupOCR("sum-img-input",  "sum-textarea");
+  setupOCR("quiz-img-input", "quiz-textarea");
+
+
+  // ═══════════════════════════════════════════
+  //  SUMMARIZER
+  // ═══════════════════════════════════════════
+  const sumBtn    = document.getElementById("sum-btn");
+  const sumResult = document.getElementById("sum-result");
+
+  sumBtn.addEventListener("click", async () => {
+    const text = document.getElementById("sum-textarea").value.trim();
+    if (!text) { showToast("✏️ Please enter some text first."); return; }
+
+    sumResult.textContent = "✨ Generating summary…";
+    sumResult.classList.remove("hidden"); sumResult.classList.add("loading");
+    sumBtn.disabled = true; sumBtn.innerHTML = '<span class="spinner"></span> Summarizing…';
+
+    try {
+      const summary = await summarizeText(text);
+      sumResult.textContent = summary;
+      sumResult.classList.remove("loading");
+      bumpStat("sums");
+      showToast("✅ Summary ready!");
+    } catch (err) {
+      sumResult.textContent = "❌ " + err.message;
+      sumResult.classList.remove("loading");
+      showToast("❌ " + err.message);
+    } finally {
+      sumBtn.disabled = false;
+      sumBtn.innerHTML = '✨ Summarize';
+    }
+  });
+
+
+  // ═══════════════════════════════════════════
+  //  QUIZ
+  // ═══════════════════════════════════════════
+  let quizData = [], qIdx = 0, score = 0, answered = false;
+
+  document.getElementById("quiz-gen-btn").addEventListener("click", async () => {
+    const text = document.getElementById("quiz-textarea").value.trim();
+    if (!text) { showToast("✏️ Please enter study material first."); return; }
+
+    const btn = document.getElementById("quiz-gen-btn");
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating…';
+    document.getElementById("quiz-area").classList.add("hidden");
+
+    try {
+      quizData = await generateQuiz(text);
+      qIdx = 0; score = 0;
+      renderQuestion();
+      document.getElementById("quiz-area").classList.remove("hidden");
+      document.getElementById("quiz-area").scrollIntoView({ behavior: "smooth" });
+      bumpStat("quizzes");
+      showToast("🎉 Quiz ready!");
+    } catch (err) {
+      showToast("❌ " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🎯 Generate Quiz';
+    }
+  });
+
+  function renderQuestion() {
+    if (!quizData.length) return;
+    const q = quizData[qIdx]; answered = false;
+
+    document.getElementById("quiz-counter").textContent = `Question ${qIdx + 1} / ${quizData.length}`;
+    document.getElementById("quiz-score").textContent   = `Score: ${score}`;
+    document.getElementById("quiz-progress").style.width = `${(qIdx / quizData.length) * 100}%`;
+    document.getElementById("quiz-question").textContent = q.question;
+    document.getElementById("quiz-feedback").textContent = "";
+    document.getElementById("quiz-feedback").className   = "quiz-feedback";
+    document.getElementById("quiz-next").classList.add("hidden");
+
+    const opts = document.getElementById("quiz-options");
+    opts.innerHTML = "";
+    q.options.forEach(opt => {
+      const b = document.createElement("button");
+      b.className   = "quiz-option";
+      b.textContent = opt;
+      b.addEventListener("click", () => handleAnswer(opt, q.answer));
+      opts.appendChild(b);
+    });
+  }
+
+  function handleAnswer(chosen, correct) {
+    if (answered) return; answered = true;
+    document.querySelectorAll(".quiz-option").forEach(b => {
+      b.disabled = true;
+      if (b.textContent === correct)                      b.classList.add("correct");
+      if (b.textContent === chosen && chosen !== correct) b.classList.add("wrong");
+    });
+
+    const fb = document.getElementById("quiz-feedback");
+    if (chosen === correct) {
+      score++; document.getElementById("quiz-score").textContent = `Score: ${score}`;
+      fb.textContent = "✅ Correct!"; fb.classList.add("correct");
+      setTimeout(() => advanceQuiz(), 1400);
+    } else {
+      fb.textContent = `❌ Wrong! Correct: ${correct}`; fb.classList.add("wrong");
+      document.getElementById("quiz-next").classList.remove("hidden");
+    }
+  }
+
+  function advanceQuiz() {
+    qIdx++;
+    if (qIdx >= quizData.length) showQuizResult();
+    else renderQuestion();
+  }
+
+  function showQuizResult() {
+    const pct   = Math.round((score / quizData.length) * 100);
+    const emoji = pct >= 80 ? "🏆" : pct >= 60 ? "👍" : "📚";
+    document.getElementById("quiz-progress").style.width = "100%";
+    document.getElementById("quiz-question").textContent = `${emoji} Quiz Complete!`;
+    document.getElementById("quiz-options").innerHTML = `
+      <div class="quiz-result-card">
+        <div class="big-score">${score} / ${quizData.length}</div>
+        <div class="pct-score">${pct}% correct</div>
+        <p>${pct >= 80 ? "Excellent work! 🌟" : pct >= 60 ? "Good effort — review the tricky ones!" : "Keep studying — you'll get it! 💪"}</p>
+      </div>`;
+    document.getElementById("quiz-feedback").textContent = "";
+    document.getElementById("quiz-next").classList.add("hidden");
+    document.getElementById("quiz-counter").textContent = "Finished!";
+  }
+
+  document.getElementById("quiz-next").addEventListener("click", advanceQuiz);
+
+
+  // ═══════════════════════════════════════════
+  //  TO-DO
+  // ═══════════════════════════════════════════
+  const TODO_KEY = "studyai_todos";
+  function loadTodos() { return JSON.parse(localStorage.getItem(TODO_KEY) || "[]"); }
+  function saveTodos(a){ localStorage.setItem(TODO_KEY, JSON.stringify(a)); renderStats(); }
+
+  function renderTodos() {
+    const todos = loadTodos();
+    const list  = document.getElementById("todo-list");
+    const count = document.getElementById("todo-count");
+    list.innerHTML = "";
+    const remaining = todos.filter(t => !t.done).length;
+    count.textContent = `${remaining} task${remaining !== 1 ? "s" : ""} remaining`;
+
+    if (!todos.length) {
+      list.innerHTML = '<p class="todo-empty">No tasks yet. Add one above! 🎯</p>';
+      return;
+    }
+    todos.forEach((t, i) => {
+      const li = document.createElement("li");
+      li.className = "todo-item" + (t.done ? " done" : "");
+      li.innerHTML = `
+        <label class="todo-check" title="Mark done">
+          <input type="checkbox" ${t.done ? "checked" : ""} />
+          <span class="checkmark">${t.done ? '<span style="color:#fff;font-size:.72rem;font-weight:800">✓</span>' : ''}</span>
+        </label>
+        <span class="todo-text">${escHtml(t.text)}</span>
+        <button class="btn btn-icon btn-danger todo-del" title="Delete">🗑️</button>
+      `;
+      li.querySelector("input").addEventListener("change", () => { const a = loadTodos(); a[i].done = !a[i].done; saveTodos(a); renderTodos(); });
+      li.querySelector(".todo-del").addEventListener("click", () => { const a = loadTodos(); a.splice(i, 1); saveTodos(a); renderTodos(); showToast("🗑️ Removed."); });
+      list.appendChild(li);
+    });
+  }
+
+  function addTodo() {
+    const inp = document.getElementById("todo-input");
+    const text = inp.value.trim(); if (!text) return;
+    const a = loadTodos(); a.unshift({ text, done: false, ts: Date.now() });
+    saveTodos(a); renderTodos(); inp.value = "";
+    showToast("✅ Task added!"); renderStats();
+  }
+
+  document.getElementById("todo-add-btn").addEventListener("click", addTodo);
+  document.getElementById("todo-input").addEventListener("keydown", e => { if (e.key === "Enter") addTodo(); });
+  document.getElementById("todo-clear").addEventListener("click", () => {
+    if (confirm("Clear all tasks?")) { localStorage.removeItem(TODO_KEY); renderTodos(); showToast("🧹 Cleared!"); renderStats(); }
+  });
+  renderTodos();
+
+
+  // ═══════════════════════════════════════════
+  //  AI CHAT
+  // ═══════════════════════════════════════════
+  let chatHistory = [];
+
+  document.getElementById("chat-toggle").addEventListener("click", () => {
+    document.getElementById("chat-window").classList.toggle("open");
+    if (document.getElementById("chat-window").classList.contains("open"))
+      document.getElementById("chat-input").focus();
+  });
+  document.getElementById("chat-close").addEventListener("click", () => {
+    document.getElementById("chat-window").classList.remove("open");
+  });
+
+  async function sendChat() {
+    const input = document.getElementById("chat-input");
+    const msg   = input.value.trim(); if (!msg) return;
+    appendMsg("user", msg); input.value = "";
+    input.disabled = true; document.getElementById("chat-send").disabled = true;
+
+    const thinking = appendMsg("assistant", null, true);
+    try {
+      const reply = await getAIResponse(msg, chatHistory);
+      thinking.remove(); appendMsg("assistant", reply);
+      chatHistory.push({ role: "user", content: msg });
+      chatHistory.push({ role: "assistant", content: reply });
+      if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+      bumpStat("chats");
+    } catch (err) {
+      thinking.remove(); appendMsg("assistant", "⚠️ " + err.message);
+    } finally {
+      input.disabled = false;
+      document.getElementById("chat-send").disabled = false;
+      input.focus();
+    }
+  }
+
+  function appendMsg(role, text, thinking = false) {
+    const body = document.getElementById("chat-body");
+    const div  = document.createElement("div");
+    div.className = `chat-msg ${role}${thinking ? " thinking" : ""}`;
+    div.innerHTML = `<div class="chat-bubble">${thinking
+      ? '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
+      : escHtml(text).replace(/\n/g, "<br>")
+    }</div>`;
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+    return div;
+  }
+
+  document.getElementById("chat-send").addEventListener("click", sendChat);
+  document.getElementById("chat-input").addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
+  });
+
+
+  // ═══════════════════════════════════════════
+  //  UTILITIES
+  // ═══════════════════════════════════════════
+  function escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+</script>
+
+<!-- Mobile sidebar helpers -->
+<script>
+  function openSidebar() {
+    document.getElementById("sidebar").classList.add("open");
+    document.getElementById("sidebar-overlay").classList.add("show");
+  }
+  function closeSidebar() {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("sidebar-overlay").classList.remove("show");
+  }
+</script>
+
+</body>
+</html>
